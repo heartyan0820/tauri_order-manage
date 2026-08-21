@@ -20,83 +20,56 @@ jobs:
         with:
           version: 10.34.5
 
-      - name: 安装 Node.js 22
+      - name: 安装 Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 22
-          cache: pnpm
+          node-version: 20
+          cache: 'pnpm'
+
+      - name: 安装 Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: 安装 Android SDK 和 NDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: 'build-tools;34.0.0 platform-tools platforms;android-34 ndk;27.0.12077973'
+
+      - name: 设置 NDK_HOME 环境变量
+        run: |
+          echo "NDK_HOME=${ANDROID_HOME}/ndk/${NDK_VERSION}" >> $GITHUB_ENV
+          echo "NDK_HOME is now: ${ANDROID_HOME}/ndk/${NDK_VERSION}"
+
+      - name: 验证 NDK 安装
+        run: |
+          ls -la "${ANDROID_HOME}/ndk/${NDK_VERSION}"
+          test -f "${NDK_HOME}/ndk-build" || (echo "NDK not found!" && exit 1)
 
       - name: 安装 Rust
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: aarch64-linux-android,armv7-linux-androideabi,i686-linux-android,x86_64-linux-android
+          targets: aarch64-linux-android,armv7-linux-androideabi,x86_64-linux-android,i686-linux-android
 
-      - name: 安装 JDK 17
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: "17"
+      - name: 安装前端依赖
+        run: pnpm install
 
-      - name: 安装 Android SDK
-        uses: android-actions/setup-android@v3
+      - name: 构建前端
+        run: pnpm build
 
-      - name: 安装 NDK 和构建工具
-        shell: bash
-        run: |
-          java -version
-          sdkmanager --version
-          sdkmanager "platform-tools" "platforms;android-34" "build-tools;35.0.0" "ndk;${NDK_VERSION}"
+      - name: 删除旧的 Android 工程
+        run: rm -rf src-tauri/gen/android
 
-      - name: 缓存 Gradle
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-            src-tauri/gen/android/.gradle
-          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
-          restore-keys: |
-            ${{ runner.os }}-gradle-
+      - name: 初始化 Android 工程
+        run: cargo tauri android init --ci
 
-      - name: 安装项目依赖
-        run: pnpm install --frozen-lockfile
-
-      - name: 删除旧的 Android 工程并重新初始化
-        run: |
-          rm -rf src-tauri/gen/android
-          pnpm tauri android init --ci
-        env:
-          ANDROID_HOME: ${{ env.ANDROID_HOME }}
-          ANDROID_SDK_ROOT: ${{ env.ANDROID_SDK_ROOT }}
-          NDK_HOME: ${{ env.NDK_HOME }}
-
-      - name: 构建 Debug APK
-        shell: bash
-        run: |
-          set -o pipefail
-          pnpm tauri android build --debug --verbose --target aarch64 2>&1 | tee android-build.log
-          build_status=${PIPESTATUS[0]}
-          echo "---- 构建错误摘要 ----"
-          grep -nEi "FAILURE|error:|Could not|Caused by|What went wrong" android-build.log | tail -100 || true
-          exit "$build_status"
-        env:
-          ANDROID_HOME: ${{ env.ANDROID_HOME }}
-          ANDROID_SDK_ROOT: ${{ env.ANDROID_SDK_ROOT }}
-          NDK_HOME: ${{ env.NDK_HOME }}
-          RUST_BACKTRACE: full
+      - name: 构建 Android APK
+        run: cargo tauri android build
 
       - name: 上传 APK 产物
         uses: actions/upload-artifact@v4
         with:
-          name: app-debug-apk
+          name: app-universal-debug
           path: src-tauri/gen/android/app/build/outputs/apk/universal/debug/app-universal-debug.apk
-          retention-days: 30
-
-      - name: 上传构建日志
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: android-build-log
-          path: android-build.log
-          if-no-files-found: warn
-          retention-days: 30
+          if-no-files-found: error
