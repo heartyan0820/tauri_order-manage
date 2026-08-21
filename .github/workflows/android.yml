@@ -44,12 +44,8 @@ jobs:
         shell: bash
         run: |
           java -version
-          echo "ANDROID_HOME=$ANDROID_HOME"
           sdkmanager --version
           sdkmanager "platform-tools" "platforms;android-34" "build-tools;35.0.0" "ndk;${NDK_VERSION}"
-          echo "ANDROID_HOME=$ANDROID_HOME" >> "$GITHUB_ENV"
-          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT" >> "$GITHUB_ENV"
-          echo "NDK_HOME=$ANDROID_HOME/ndk/$NDK_VERSION" >> "$GITHUB_ENV"
 
       - name: 缓存 Gradle
         uses: actions/cache@v4
@@ -65,13 +61,10 @@ jobs:
       - name: 安装项目依赖
         run: pnpm install --frozen-lockfile
 
-      - name: 初始化 Android 工程
+      - name: 删除旧的 Android 工程并重新初始化
         run: |
-          if [ ! -d "src-tauri/gen/android" ]; then
-            pnpm tauri android init --ci
-          else
-            echo "Android 工程已存在，跳过初始化"
-          fi
+          rm -rf src-tauri/gen/android
+          pnpm tauri android init --ci
         env:
           ANDROID_HOME: ${{ env.ANDROID_HOME }}
           ANDROID_SDK_ROOT: ${{ env.ANDROID_SDK_ROOT }}
