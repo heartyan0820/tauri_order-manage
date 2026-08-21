@@ -65,11 +65,12 @@ jobs:
           NDK_HOME: ${{ env.NDK_HOME }}
 
       - name: 构建 Debug APK
-        run: pnpm tauri android build --debug
+        run: pnpm tauri android build --debug --verbose -- --stacktrace --info
         env:
           ANDROID_HOME: ${{ env.ANDROID_HOME }}
           ANDROID_SDK_ROOT: ${{ env.ANDROID_SDK_ROOT }}
           NDK_HOME: ${{ env.NDK_HOME }}
+          RUST_BACKTRACE: full
 
       - name: 上传 APK 产物
         uses: actions/upload-artifact@v4
