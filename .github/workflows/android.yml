@@ -65,7 +65,14 @@ jobs:
           NDK_HOME: ${{ env.NDK_HOME }}
 
       - name: 构建 Debug APK
-        run: pnpm tauri android build --debug --verbose --target aarch64
+        shell: bash
+        run: |
+          set -o pipefail
+          pnpm tauri android build --debug --verbose --target aarch64 2>&1 | tee android-build.log
+          build_status=${PIPESTATUS[0]}
+          echo "---- 构建错误摘要 ----"
+          grep -nEi "FAILURE|error:|Could not|Caused by|What went wrong" android-build.log | tail -100 || true
+          exit "$build_status"
         env:
           ANDROID_HOME: ${{ env.ANDROID_HOME }}
           ANDROID_SDK_ROOT: ${{ env.ANDROID_SDK_ROOT }}
@@ -77,4 +84,13 @@ jobs:
         with:
           name: app-debug-apk
           path: src-tauri/gen/android/app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 30
+
+      - name: 上传构建日志
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-build-log
+          path: android-build.log
+          if-no-files-found: warn
           retention-days: 30
