@@ -6,10 +6,7 @@ on:
   workflow_dispatch:
 
 env:
-  ANDROID_HOME: /usr/local/lib/android/sdk
-  ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
-  NDK_VERSION: 28.2.13676358
-  NDK_HOME: /usr/local/lib/android/sdk/ndk/28.2.13676358
+  NDK_VERSION: 27.0.12077973
 
 jobs:
   build-apk:
@@ -35,7 +32,7 @@ jobs:
           targets: aarch64-linux-android,armv7-linux-androideabi,i686-linux-android,x86_64-linux-android
 
       - name: 安装 JDK 17
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: "17"
@@ -48,17 +45,33 @@ jobs:
         run: |
           java -version
           echo "ANDROID_HOME=$ANDROID_HOME"
-          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"
-          command -v sdkmanager
           sdkmanager --version
           sdkmanager "platform-tools" "platforms;android-34" "build-tools;35.0.0" "ndk;${NDK_VERSION}"
+          echo "ANDROID_HOME=$ANDROID_HOME" >> "$GITHUB_ENV"
+          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT" >> "$GITHUB_ENV"
           echo "NDK_HOME=$ANDROID_HOME/ndk/$NDK_VERSION" >> "$GITHUB_ENV"
+
+      - name: 缓存 Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+            src-tauri/gen/android/.gradle
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
 
       - name: 安装项目依赖
         run: pnpm install --frozen-lockfile
 
       - name: 初始化 Android 工程
-        run: pnpm tauri android init --ci
+        run: |
+          if [ ! -d "src-tauri/gen/android" ]; then
+            pnpm tauri android init --ci
+          else
+            echo "Android 工程已存在，跳过初始化"
+          fi
         env:
           ANDROID_HOME: ${{ env.ANDROID_HOME }}
           ANDROID_SDK_ROOT: ${{ env.ANDROID_SDK_ROOT }}
