@@ -65,7 +65,7 @@ jobs:
           NDK_HOME: ${{ env.NDK_HOME }}
 
       - name: 构建 Debug APK
-        run: pnpm tauri android build --debug --verbose -- --stacktrace --info
+        run: pnpm tauri android build --debug --verbose --target aarch64
         env:
           ANDROID_HOME: ${{ env.ANDROID_HOME }}
           ANDROID_SDK_ROOT: ${{ env.ANDROID_SDK_ROOT }}
