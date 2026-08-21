@@ -58,6 +58,7 @@ mod desktop_tray {
     }
 }
 
+#[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     std::panic::set_hook(Box::new(|info| {
         let _ = std::fs::write("tauri-startup.log", format!("panic: {info}\n"));
