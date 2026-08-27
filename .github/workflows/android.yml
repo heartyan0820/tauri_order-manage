@@ -43,7 +43,7 @@ jobs:
       - name: 安装 Rust
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: aarch64-linux-android,armv7-linux-androideabi,x86_64-linux-android,i686-linux-android
+          targets: aarch64-linux-android
 
       - name: 安装前端依赖
         run: pnpm install
@@ -51,21 +51,41 @@ jobs:
       - name: 初始化 Android 工程
         run: pnpm tauri android init
 
-      - name: 构建 Android APK
-        run: pnpm tauri android build --debug
+      - name: 配置 Gradle 仅打 arm64-v8a
+        run: |
+          python3 -c "
+          path = 'src-tauri/gen/android/app/build.gradle.kts'
+          with open(path, 'r') as f:
+              content = f.read()
+          splits_config = '''
+              splits {
+                  abi {
+                      isEnable = true
+                      reset()
+                      include(\"arm64-v8a\")
+                      isUniversalApk = false
+                  }
+              }
+          '''
+          content = content.replace('android {', 'android {' + splits_config, 1)
+          with open(path, 'w') as f:
+              f.write(content)
+          print('Gradle 配置已修改，仅构建 arm64-v8a')
+          "
 
-      # 关键：查找并打印实际生成的 APK 路径
+      - name: 构建 Release APK（arm64-v8a 单架构）
+        run: pnpm tauri android build
+        env:
+          NDK_HOME: ${{ env.ANDROID_HOME }}/ndk/${NDK_VERSION}
+
       - name: 查找 APK 文件
         run: |
-          echo "=== APK 输出目录结构 ==="
-          find src-tauri/gen/android/app/build/outputs -name "*.apk" -type f
-          echo "=== 完整目录树 ==="
-          ls -R src-tauri/gen/android/app/build/outputs/apk/ || true
+          echo "=== 所有 APK 文件 ==="
+          find src-tauri/gen/android/app/build/outputs -name "*.apk" -type f -exec ls -lh {} \;
 
-      # 用通配符上传所有 APK，不写死文件名
       - name: 上传 APK 产物
         uses: actions/upload-artifact@v4
         with:
-          name: android-apk
+          name: android-apk-release-arm64
           path: src-tauri/gen/android/app/build/outputs/apk/**/*.apk
           if-no-files-found: error
