@@ -54,9 +54,18 @@ jobs:
       - name: 构建 Android APK
         run: pnpm tauri android build --debug
 
+      # 关键：查找并打印实际生成的 APK 路径
+      - name: 查找 APK 文件
+        run: |
+          echo "=== APK 输出目录结构 ==="
+          find src-tauri/gen/android/app/build/outputs -name "*.apk" -type f
+          echo "=== 完整目录树 ==="
+          ls -R src-tauri/gen/android/app/build/outputs/apk/ || true
+
+      # 用通配符上传所有 APK，不写死文件名
       - name: 上传 APK 产物
         uses: actions/upload-artifact@v4
         with:
-          name: app-debug-apk
-          path: src-tauri/gen/android/app/build/outputs/apk/debug/app-debug.apk
+          name: android-apk
+          path: src-tauri/gen/android/app/build/outputs/apk/**/*.apk
           if-no-files-found: error
