@@ -11,7 +11,7 @@ export default defineConfig({
   },
   clearScreen: false,
   server: {
-    port: 1420,
+    port: 1520,
     strictPort: true,
     host: true,
   },

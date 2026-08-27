@@ -5,7 +5,7 @@
   "identifier": "com.order.management",
   "build": {
     "beforeDevCommand": "pnpm dev",
-    "devUrl": "http://localhost:1420",
+    "devUrl": "http://192.168.2.105:1520",
     "beforeBuildCommand": "pnpm build",
     "frontendDist": "../dist"
   },
@@ -27,13 +27,6 @@
     "trayIcon": {
       "iconPath": "icons/128x128.png",
       "iconAsTemplate": true
-    },
-    "android": {
-      "active": true,
-      "minSdkVersion": 24,
-      "targetSdkVersion": 34,
-      "compileSdkVersion": 34,
-      "abiFilters": ["arm64-v8a"]
     }
   },
   "bundle": {
