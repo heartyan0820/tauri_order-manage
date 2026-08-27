@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 env:
-  NDK_VERSION: 27.0.12077973
+  NDK_VERSION: 26.1.10909125
 
 jobs:
   build-apk:
@@ -35,17 +35,10 @@ jobs:
       - name: 安装 Android SDK 和 NDK
         uses: android-actions/setup-android@v3
         with:
-          packages: 'build-tools;34.0.0 platform-tools platforms;android-34 ndk;27.0.12077973'
+          packages: 'build-tools;34.0.0 platform-tools platforms;android-34 ndk;26.1.10909125'
 
-      - name: 设置 NDK_HOME 环境变量
-        run: |
-          echo "NDK_HOME=${ANDROID_HOME}/ndk/${NDK_VERSION}" >> $GITHUB_ENV
-          echo "NDK_HOME is now: ${ANDROID_HOME}/ndk/${NDK_VERSION}"
-
-      - name: 验证 NDK 安装
-        run: |
-          ls -la "${ANDROID_HOME}/ndk/${NDK_VERSION}"
-          test -f "${NDK_HOME}/ndk-build" || (echo "NDK not found!" && exit 1)
+      - name: 设置 NDK_HOME
+        run: echo "NDK_HOME=${ANDROID_HOME}/ndk/${NDK_VERSION}" >> $GITHUB_ENV
 
       - name: 安装 Rust
         uses: dtolnay/rust-toolchain@stable
@@ -55,21 +48,15 @@ jobs:
       - name: 安装前端依赖
         run: pnpm install
 
-      - name: 构建前端
-        run: pnpm build
-
-      - name: 删除旧的 Android 工程
-        run: rm -rf src-tauri/gen/android
-
       - name: 初始化 Android 工程
-        run: cargo tauri android init --ci
+        run: pnpm tauri android init
 
       - name: 构建 Android APK
-        run: cargo tauri android build
+        run: pnpm tauri android build --debug
 
       - name: 上传 APK 产物
         uses: actions/upload-artifact@v4
         with:
-          name: app-universal-debug
-          path: src-tauri/gen/android/app/build/outputs/apk/universal/debug/app-universal-debug.apk
+          name: app-debug-apk
+          path: src-tauri/gen/android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
