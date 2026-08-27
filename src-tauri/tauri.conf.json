@@ -27,6 +27,13 @@
     "trayIcon": {
       "iconPath": "icons/128x128.png",
       "iconAsTemplate": true
+    },
+    "android": {
+      "active": true,
+      "minSdkVersion": 24,
+      "targetSdkVersion": 34,
+      "compileSdkVersion": 34,
+      "abiFilters": ["arm64-v8a"]
     }
   },
   "bundle": {
