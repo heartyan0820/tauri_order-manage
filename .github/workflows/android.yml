@@ -57,7 +57,7 @@ jobs:
       - name: 构建 Release APK（仅 arm64-v8a）
         run: pnpm tauri android build --apk --target aarch64
         env:
-          NDK_HOME: ${{ env.ANDROID_HOME }}/ndk/${NDK_VERSION}
+          NDK_HOME: ${{ env.ANDROID_HOME }}/ndk/${{ env.NDK_VERSION }}
 
       - name: 查找 APK 文件
         run: |
