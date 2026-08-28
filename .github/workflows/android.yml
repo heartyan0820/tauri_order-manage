@@ -54,10 +54,32 @@ jobs:
       - name: 初始化 Android 工程
         run: pnpm tauri android init
 
+      - name: 生成签名密钥
+        run: |
+          keytool -genkeypair -v -keystore "$RUNNER_TEMP/release.keystore" \
+            -alias order-management -keyalg RSA -keysize 2048 -validity 10950 \
+            -storepass order123456 -keypass order123456 \
+            -dname "CN=Order Management, OU=Dev, O=Dev, L=Beijing, ST=Beijing, C=CN"
+
       - name: 构建 Release APK（仅 arm64-v8a）
         run: pnpm tauri android build --apk --target aarch64
         env:
           NDK_HOME: ${{ env.ANDROID_HOME }}/ndk/${{ env.NDK_VERSION }}
+
+      - name: 签名 APK
+        run: |
+          APK=$(find src-tauri/gen/android/app/build/outputs/apk -name "*.apk" -type f | head -n 1)
+          echo "待签名: $APK"
+          BT=${ANDROID_HOME}/build-tools/34.0.0
+          "$BT/zipalign" -f 4 "$APK" "$APK.aligned"
+          "$BT/apksigner" sign \
+            --ks "$RUNNER_TEMP/release.keystore" \
+            --ks-key-alias order-management \
+            --ks-pass pass:order123456 --key-pass pass:order123456 \
+            --out "$APK" "$APK.aligned"
+          rm -f "$APK.aligned"
+          "$BT/apksigner" verify "$APK"
+          echo "签名完成并通过校验: $APK"
 
       - name: 查找 APK 文件
         run: |
