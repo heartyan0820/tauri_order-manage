@@ -54,20 +54,23 @@ jobs:
       - name: 初始化 Android 工程
         run: pnpm tauri android init
 
-      - name: 使用固定密钥（Secrets 已配置）
-        if: ${{ secrets.ANDROID_KEYSTORE_BASE64 != '' }}
+      - name: 准备签名密钥
+        id: keystore
         env:
           KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
-        run: echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/release.keystore"
-
-      - name: 生成临时密钥（Secrets 未配置）
-        if: ${{ secrets.ANDROID_KEYSTORE_BASE64 == '' }}
         run: |
-          keytool -genkeypair -v -keystore "$RUNNER_TEMP/release.keystore" \
-            -alias order-management -keyalg RSA -keysize 2048 -validity 10950 \
-            -storepass order123456 -keypass order123456 \
-            -dname "CN=Order Management, OU=Dev, O=Dev, L=Beijing, ST=Beijing, C=CN"
-          echo "提示：下载 android-signing-keystore 产物并配置到 Secrets 可固定签名"
+          if [ -n "$KEYSTORE_B64" ]; then
+            echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/release.keystore"
+            echo "fixed=true" >> "$GITHUB_OUTPUT"
+            echo "使用 Secrets 中的固定密钥"
+          else
+            keytool -genkeypair -v -keystore "$RUNNER_TEMP/release.keystore" \
+              -alias order-management -keyalg RSA -keysize 2048 -validity 10950 \
+              -storepass order123456 -keypass order123456 \
+              -dname "CN=Order Management, OU=Dev, O=Dev, L=Beijing, ST=Beijing, C=CN"
+            echo "fixed=false" >> "$GITHUB_OUTPUT"
+            echo "Secrets 未配置，使用临时密钥（可下载 android-signing-keystore 产物固化签名）"
+          fi
 
       - name: 构建 Release APK（仅 arm64-v8a）
         run: pnpm tauri android build --apk --target aarch64
@@ -105,7 +108,7 @@ jobs:
           if-no-files-found: error
 
       - name: 上传密钥文件（配置 Secrets 前的临时产物）
-        if: ${{ secrets.ANDROID_KEYSTORE_BASE64 == '' }}
+        if: steps.keystore.outputs.fixed == 'false'
         uses: actions/upload-artifact@v4
         with:
           name: android-signing-keystore
