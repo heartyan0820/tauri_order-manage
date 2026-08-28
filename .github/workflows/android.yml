@@ -54,12 +54,20 @@ jobs:
       - name: 初始化 Android 工程
         run: pnpm tauri android init
 
-      - name: 生成签名密钥
+      - name: 使用固定密钥（Secrets 已配置）
+        if: ${{ secrets.ANDROID_KEYSTORE_BASE64 != '' }}
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/release.keystore"
+
+      - name: 生成临时密钥（Secrets 未配置）
+        if: ${{ secrets.ANDROID_KEYSTORE_BASE64 == '' }}
         run: |
           keytool -genkeypair -v -keystore "$RUNNER_TEMP/release.keystore" \
             -alias order-management -keyalg RSA -keysize 2048 -validity 10950 \
             -storepass order123456 -keypass order123456 \
             -dname "CN=Order Management, OU=Dev, O=Dev, L=Beijing, ST=Beijing, C=CN"
+          echo "提示：下载 android-signing-keystore 产物并配置到 Secrets 可固定签名"
 
       - name: 构建 Release APK（仅 arm64-v8a）
         run: pnpm tauri android build --apk --target aarch64
@@ -67,6 +75,9 @@ jobs:
           NDK_HOME: ${{ env.ANDROID_HOME }}/ndk/${{ env.NDK_VERSION }}
 
       - name: 签名 APK
+        env:
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS || 'order-management' }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD || 'order123456' }}
         run: |
           APK=$(find src-tauri/gen/android/app/build/outputs/apk -name "*.apk" -type f | head -n 1)
           echo "待签名: $APK"
@@ -74,8 +85,8 @@ jobs:
           "$BT/zipalign" -f 4 "$APK" "$APK.aligned"
           "$BT/apksigner" sign \
             --ks "$RUNNER_TEMP/release.keystore" \
-            --ks-key-alias order-management \
-            --ks-pass pass:order123456 --key-pass pass:order123456 \
+            --ks-key-alias "$KEY_ALIAS" \
+            --ks-pass pass:"$KEY_PASSWORD" --key-pass pass:"$KEY_PASSWORD" \
             --out "$APK" "$APK.aligned"
           rm -f "$APK.aligned"
           "$BT/apksigner" verify "$APK"
@@ -91,4 +102,12 @@ jobs:
         with:
           name: android-apk-release-arm64
           path: src-tauri/gen/android/app/build/outputs/apk/**/*.apk
+          if-no-files-found: error
+
+      - name: 上传密钥文件（配置 Secrets 前的临时产物）
+        if: ${{ secrets.ANDROID_KEYSTORE_BASE64 == '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-signing-keystore
+          path: ${{ runner.temp }}/release.keystore
           if-no-files-found: error
