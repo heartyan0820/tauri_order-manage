@@ -26,6 +26,7 @@ export const useAuthStore = defineStore("auth", () => {
       // Mock 登录：admin/123456
       await new Promise((r) => setTimeout(r, 500));
       if (username === "admin" && password === "123456") {
+    alert("username="+username+",password="+password);
         const mockUser: UserInfo = {
           id: "1",
           username: "admin",
